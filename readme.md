@@ -26,7 +26,7 @@ redis 127.0.0.1:6379> zadd hackers 1912 "Alan Turing"
 Запрос к серверу:
 
 ```bash
-curl -s http://localhost:8010/json/hackers |v1
+curl -s http://localhost:8010/json/hackers |json_pp
 ```
 
 Ожидаемый результат:
