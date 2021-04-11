@@ -26,7 +26,7 @@ redis 127.0.0.1:6379> zadd hackers 1912 "Alan Turing"
 Запрос к серверу:
 
 ```bash
-curl -s http://localhost:8010/json/hackers |json_pp
+curl -s http://localhost:8010/json/hackers |v1
 ```
 
 Ожидаемый результат:
@@ -59,3 +59,9 @@ curl -s http://localhost:8010/json/hackers |json_pp
   }
 ]
 ```
+***
+**Additional requirements**
+1) Избавиться от парсинга ответа redis с помощью использования более высокоуровневой библиотеки,
+2) Сделть singleton из redis.go,а
+3) Хранить данные в локальном кеше с TTL 1 секунда и обращаться
+   к redis только если данных в кеше нет

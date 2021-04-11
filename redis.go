@@ -1,39 +1,57 @@
 package main
 
 import (
-	"github.com/gomodule/redigo/redis"
-	"log"
-	"strconv"
+	"context"
+	"fmt"
+	"github.com/ReneKroon/ttlcache/v2"
+	"github.com/go-redis/redis/v8"
+	"sync"
+	"time"
 )
 
 type hacker struct {
 	Name string `json:"name"`
-	Score int `json:"score"`
+	Score float64 `json:"score"`
 }
-
 type hackers []hacker
 
-func (h *hackers)getHacker() {
-	conn, err := redis.Dial("tcp", "localhost:6379")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
+var (
+	mu sync.Mutex
+	ctx = context.Background()
+	client *redis.Client
+	cache = ttlcache.NewCache()
+)
+const KEY = "key"
 
-	reaData, err := redis.Strings(conn.Do("ZRANGE", "hackers", 0, -1, "withscores") )
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	count := len(reaData)-1
-
-	for i := 0; i < count; i+=2 {
-		name := reaData[i]
-		score,_ := strconv.Atoi( reaData[i+1] )
-		*h = append(*h,hacker{
-			Score: score,
-			Name: name,
-		} )
-	}
+func init() {
+	client = redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	cache.SetTTL(time.Duration(1 * time.Second))
 }
 
+
+func (h *hackers)getHacker() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	var data *redis.ZSliceCmd
+
+	// проверяем наличее в кэше
+	if val, err := cache.Get(KEY); err != nil {
+		data = client.ZRangeWithScores(ctx, "hackers", 0, -1)
+		cache.Set(KEY, data)
+	} else {
+		data = val.(*redis.ZSliceCmd)
+	}
+
+	// разбираем и упаковываем данные
+	for _, z := range data.Val() {
+		*h = append(*h, hacker{
+			Name:  fmt.Sprintf("%v", z.Member ),
+			Score: z.Score,
+		})
+	}
+}
